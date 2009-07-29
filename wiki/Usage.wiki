@@ -1,0 +1,29 @@
+#summary Usage Tutorial for jpa-helper.
+
+= Creating New Record =
+
+{{{
+JpaHelper db = new JpaHelper("puMyPersistenceUnit");
+
+MyEntity my = new MyEntity();
+my.setText("bla bla bla ...");
+
+db.create(my);
+}}}
+
+= Updating Record =
+
+{{{
+JpaHelper db = new JpaHelper("puMyPersistenceUnit");
+MyEntity  my = (MyEntity) db.find(MyEntity.class, 1);
+my.setText("that's interesting!");
+db.update(my);
+}}}
+
+= Deleting Record =
+
+{{{
+JpaHelper db = new JpaHelper("puMyPersistenceUnit");
+MyEntity  my = (MyEntity) db.find(MyEntity.class, 1);
+db.delete(my);
+}}}
