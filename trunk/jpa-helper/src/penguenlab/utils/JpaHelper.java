@@ -128,16 +128,20 @@ public class JpaHelper {
 
 
 
-  // --- [create] ----------------------------------------------------------------------------------
+  // --- [update] ----------------------------------------------------------------------------------
 
   public Object update(Object entity) {
     final EntityManager em = getEntityManager();
     try {
       final EntityTransaction et = em.getTransaction();
       try {
+
+        // Updating record
         et.begin();
         em.merge(entity);
         et.commit();
+      } catch (Exception e) {
+        e.printStackTrace();
       } finally {
         if (et != null && et.isActive()) {
           entity = null;
@@ -333,6 +337,18 @@ public class JpaHelper {
     }
 
     return resultList;
+  }
+
+
+
+  // --- [flush] -----------------------------------------------------------------------------------
+
+  public void flush() {
+    final EntityManager     em = getEntityManager();
+    final EntityTransaction et = em.getTransaction();
+    et.begin();
+    em.flush();
+    et.commit();
   }
 
 
