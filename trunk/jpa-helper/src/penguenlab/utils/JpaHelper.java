@@ -40,6 +40,7 @@ package penguenlab.utils;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.List;
 import javax.persistence.*;
 
@@ -85,7 +86,7 @@ public class JpaHelper {
 
       try {
 
-        // Writing data
+        // Creating record
         et.begin();
         em.persist(entity);
         et.commit();
@@ -98,11 +99,11 @@ public class JpaHelper {
 
           for (Annotation a : annotations) {
             if (a.annotationType().equals(ManyToOne.class)) {
-              Object referenceEntity = getter(entity, f).invoke(entity);
-              Field  listField       = findOneToManyField(referenceEntity, f.getName());
-              Method getListMethod   = getter(referenceEntity, listField);
-              List   entityList      = (List)getListMethod.invoke(referenceEntity);
-              entityList.add(entity);
+              Object     referenceEntity     = getter(entity, f).invoke(entity);
+              Field      listField           = findOneToManyField(referenceEntity, f.getName());
+              Method     getCollectionMethod = getter(referenceEntity, listField);
+              Collection entityCollection    = (Collection) getCollectionMethod.invoke(referenceEntity);
+              entityCollection.add(entity);
 
               et.begin();
               em.merge(referenceEntity);
@@ -159,9 +160,34 @@ public class JpaHelper {
     try {
       final EntityTransaction et = em.getTransaction();
       try {
+
+        // Deleting record
         et.begin();
         em.remove(em.merge(entity));
         et.commit();
+
+        // Searching for relations
+        Field[] fields = entity.getClass().getDeclaredFields();
+
+        for (Field f : fields) {
+          Annotation[] annotations = f.getAnnotations();
+
+          for (Annotation a : annotations) {
+            if (a.annotationType().equals(ManyToOne.class)) {
+              Object     referenceEntity     = getter(entity, f).invoke(entity);
+              Field      listField           = findOneToManyField(referenceEntity, f.getName());
+              Method     getCollectionMethod = getter(referenceEntity, listField);
+              Collection entityCollection    = (Collection) getCollectionMethod.invoke(referenceEntity);
+              entityCollection.remove(entity);
+
+              et.begin();
+              em.merge(referenceEntity);
+              et.commit();
+            }
+          }
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
       } finally {
         if (et != null && et.isActive()) {
           entity = null;
