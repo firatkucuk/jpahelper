@@ -52,7 +52,7 @@ public class JpaHelper {
 
 
 
-  // ### [EN] FIELDS ###############################################################################
+  // ### FIELDS ####################################################################################
 
   private EntityManagerFactory emf;
 
@@ -70,7 +70,7 @@ public class JpaHelper {
 
   // --- [getEntityManager] ------------------------------------------------------------------------
 
-  private EntityManager getEntityManager() {
+  public EntityManager getEntityManager() {
     return emf.createEntityManager();
   }
 
@@ -216,6 +216,7 @@ public class JpaHelper {
     try {
       result = em.find(entity, primaryKey);
     } catch (NoResultException nre) {
+    } catch (NumberFormatException nre) {
     } finally {
       if (em != null && em.isOpen())
         em.close();
