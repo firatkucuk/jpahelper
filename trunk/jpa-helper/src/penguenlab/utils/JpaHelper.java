@@ -28,7 +28,7 @@ package penguenlab.utils;
  * Copyright (C) 2009, Fırat KÜÇÜK
  * ----------------
  * http://www.penguenyuvasi.org/ | firatkucuk_at_gmail_dot_com
- * TÜBİTAK MAM BTE, GEBZE / SAKARYA
+ * TÜBİTAK MAM BTE, GEBZE / KOCAELİ
  *
 \* ********************************************************************************************** */
 
@@ -40,6 +40,8 @@ package penguenlab.utils;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
 import javax.persistence.*;
@@ -78,7 +80,8 @@ public class JpaHelper {
 
   // --- [create] ----------------------------------------------------------------------------------
 
-  public Object create(Object entity) {
+  public <T> T create(T entity) {
+
     final EntityManager em = getEntityManager();
 
     try {
@@ -98,16 +101,20 @@ public class JpaHelper {
           Annotation[] annotations = f.getAnnotations();
 
           for (Annotation a : annotations) {
-            if (a.annotationType().equals(ManyToOne.class)) {
-              Object     referenceEntity     = getter(entity, f).invoke(entity);
-              Field      listField           = findOneToManyField(referenceEntity, f.getName());
-              Method     getCollectionMethod = getter(referenceEntity, listField);
-              Collection entityCollection    = (Collection) getCollectionMethod.invoke(referenceEntity);
-              entityCollection.add(entity);
+            if (a instanceof ManyToOne) {
+              Object referenceEntity = getter(entity, f).invoke(entity);
 
-              et.begin();
-              em.merge(referenceEntity);
-              et.commit();
+              if (referenceEntity != null) {
+                Field         listField           = findOneToManyField(referenceEntity, entity, f.getName());
+                Method        getCollectionMethod = getter(referenceEntity, listField);
+                Collection<T> entityCollection    = (Collection<T>) getCollectionMethod.invoke(referenceEntity);
+
+                entityCollection.add(entity);
+
+                et.begin();
+                em.merge(referenceEntity);
+                et.commit();
+              }
             }
           }
         }
@@ -159,7 +166,7 @@ public class JpaHelper {
 
   // --- [delete] ----------------------------------------------------------------------------------
 
-  public void delete(Object entity) {
+  public <T> void delete(T entity) {
     final EntityManager em = getEntityManager();
     try {
       final EntityTransaction et = em.getTransaction();
@@ -177,16 +184,20 @@ public class JpaHelper {
           Annotation[] annotations = f.getAnnotations();
 
           for (Annotation a : annotations) {
-            if (a.annotationType().equals(ManyToOne.class)) {
-              Object     referenceEntity     = getter(entity, f).invoke(entity);
-              Field      listField           = findOneToManyField(referenceEntity, f.getName());
-              Method     getCollectionMethod = getter(referenceEntity, listField);
-              Collection entityCollection    = (Collection) getCollectionMethod.invoke(referenceEntity);
-              entityCollection.remove(entity);
+            if (a instanceof ManyToOne) {
+              Object referenceEntity = getter(entity, f).invoke(entity);
 
-              et.begin();
-              em.merge(referenceEntity);
-              et.commit();
+              if (referenceEntity != null) {
+                Field         listField           = findOneToManyField(referenceEntity, entity, f.getName());
+                Method        getCollectionMethod = getter(referenceEntity, listField);
+                Collection<T> entityCollection    = (Collection<T>) getCollectionMethod.invoke(referenceEntity);
+
+                entityCollection.remove(entity);
+
+                et.begin();
+                em.merge(referenceEntity);
+                et.commit();
+              }
             }
           }
         }
@@ -208,10 +219,10 @@ public class JpaHelper {
 
   // --- [find] ------------------------------------------------------------------------------------
 
-  public Object find(Class entity, Object primaryKey) {
+  public <T> T find(Class<T> entity, Object primaryKey) {
 
     final EntityManager em = getEntityManager();
-    Object result = null;
+    T result = null;
 
     try {
       result = em.find(entity, primaryKey);
@@ -382,7 +393,7 @@ public class JpaHelper {
 
   // --- [getter] ----------------------------------------------------------------------------------
 
-  private static Method getter(Object entity, Field field) {
+  private static <T> Method getter(T entity, Field field) {
 
     StringBuffer sbf = new StringBuffer(field.getName());
     String getterName = "get" + sbf.replace(0, 1, sbf.substring(0, 1).toUpperCase());
@@ -398,7 +409,7 @@ public class JpaHelper {
 
   // --- [setter] ----------------------------------------------------------------------------------
 
-  private static Method setter(Object entity, Field field) {
+  private static <T> Method setter(T entity, Field field) {
 
     StringBuffer sbf = new StringBuffer(field.getName());
     String getterName = "set" + sbf.replace(0, 1, sbf.substring(0, 1).toUpperCase());
@@ -414,15 +425,22 @@ public class JpaHelper {
 
   // --- [findOneToManyField] ----------------------------------------------------------------------
 
-  private static Field findOneToManyField(Object entity, String mappedBy) {
+  private static <R, E> Field findOneToManyField(R referenceEntity, E entity, String mappedBy) {
 
-    Field[] fields = entity.getClass().getDeclaredFields();
+    Field[] fields = referenceEntity.getClass().getDeclaredFields();
 
     for (Field f : fields) {
       Annotation[] annotations = f.getAnnotations();
       for (Annotation a : annotations) {
-        if (a.annotationType().equals(OneToMany.class) && ((OneToMany) a).mappedBy().equals(mappedBy))
-          return f;
+        if (a instanceof OneToMany && ((OneToMany) a).mappedBy().equals(mappedBy)) {
+
+          ParameterizedType pType  = (ParameterizedType) f.getGenericType();
+          Type[]            params = pType.getActualTypeArguments();
+
+          if (params.length == 1 && params[0].equals(entity.getClass())) {
+            return f;
+          }
+        }
       }
     }
 
